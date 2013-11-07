@@ -1,12 +1,15 @@
 package com.randerson.entities;
 
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Rectangle;
+
 public class Hero extends Actors {
 
 	private int XP_TO_LEVEL;
 	
-	public Hero(int hp_modifier, int strength, int endurance, int constitution, int level)
+	public Hero(int hp_modifier, int strength, int endurance, int constitution, int level, Rectangle boundary, Texture texture)
 	{
-		super(hp_modifier, strength, endurance, constitution, level);
+		super(hp_modifier, strength, endurance, constitution, level, boundary, texture);
 		
 		// determine the xp required for this entity to level
 		XP_TO_LEVEL = (strength + endurance + constitution) * (100 - level);

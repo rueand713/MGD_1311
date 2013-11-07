@@ -34,7 +34,13 @@
 		<link>
 			<name>assets</name>
 			<type>2</type>
-			<location>/Users/Rue/Documents/workspace/mgd_game/assets</location>
+			<locationURI>copy_PROJECT_LOC/assets</locationURI>
 		</link>
 	</linkedResources>
+	<variableList>
+		<variable>
+			<name>copy_PROJECT_LOC</name>
+			<value>$%7BPARENT-1-PROJECT_LOC%7D/mgd_game</value>
+		</variable>
+	</variableList>
 </projectDescription>

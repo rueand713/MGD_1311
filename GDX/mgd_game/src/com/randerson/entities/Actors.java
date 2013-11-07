@@ -2,6 +2,17 @@ package com.randerson.entities;
 
 import java.util.ArrayList;
 
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.badlogic.gdx.physics.box2d.Shape;
+import com.badlogic.gdx.physics.box2d.World;
+
 public class Actors {
 
 	private int MAX_HP;
@@ -14,10 +25,25 @@ public class Actors {
 	private int MOD;
 	private int[] XP = {0, 0};
 	private int LEVEL;
+	private Texture TEXTURE;
+	private Rectangle BOUNDARY;
+	private PolygonShape POLY_BOUNDARY;
+	private CircleShape CIRC_BOUNDARY;
 	private ArrayList<Item> INVENTORY;
+	private Fixture FIXTURE;
 	
-	public Actors(int hp_modifier, int strength, int endurance, int constitution, int level)
+	protected int friction;
+	protected int density;
+	protected int restitution;
+	
+	public Actors(int hp_modifier, int strength, int endurance, int constitution, int level, Rectangle boundary, Texture texture)
 	{
+		// set the object texture
+		TEXTURE = texture;
+		
+		// set the object boundings
+		BOUNDARY = boundary;
+		
 		// set the mod level
 		MOD = hp_modifier;
 		
@@ -34,7 +60,37 @@ public class Actors {
 		SDAM = (int) (constitution * 0.5);
 	}
 	
+	public void definePhysics(World world, boolean usePolygon, float radius)
+	{
+		Shape shape;
+		
+		if (usePolygon)
+		{
+			shape = Box2D.getPolygon(radius);
+		}
+		else
+		{
+			shape = Box2D.getCircle(radius);
+		}
+		
+		BodyDef bodydef = Box2D.getBodyDef(Box2D.DYNAMIC_BODY, BOUNDARY.x, BOUNDARY.y);
+		Body body = Box2D.getBody(world, bodydef);
+		
+		FixtureDef fxDef = Box2D.getFixtureDef(shape, density, friction, restitution);
+		FIXTURE = Box2D.getFixture(body, fxDef);
+	}
+	
 	// ***** SETTER METHODS *****
+	
+	public void setPolyBoundary(float radius)
+	{
+		POLY_BOUNDARY = Box2D.getPolygon(radius);
+	}
+	
+	public void setCircleBoundary(float radius)
+	{
+		CIRC_BOUNDARY = Box2D.getCircle(radius);
+	}
 	
 	// method for adding item to inventory
 	public void addItem(Item item)
@@ -47,6 +103,11 @@ public class Actors {
 	{
 		XP[0] += xp;
 		XP[1] += xp;
+	}
+	
+	public void setTexture(Texture texture)
+	{
+		TEXTURE = texture;
 	}
 	
 	// method for setting total xp value
@@ -153,5 +214,30 @@ public class Actors {
 	public int getCurrentXp()
 	{
 		return XP[0];
+	}
+	
+	public Texture getTexture()
+	{
+		return TEXTURE;
+	}
+	
+	public Rectangle getBoundary()
+	{
+		return BOUNDARY;
+	}
+	
+	public PolygonShape getPolyBoundary()
+	{
+		return POLY_BOUNDARY;
+	}
+	
+	public CircleShape getCircleBoundary()
+	{
+		return CIRC_BOUNDARY;
+	}
+	
+	public Fixture getFixture()
+	{
+		return FIXTURE;
 	}
 }
