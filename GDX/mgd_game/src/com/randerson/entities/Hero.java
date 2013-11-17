@@ -46,4 +46,9 @@ public class Hero extends Actors {
 	{
 		return XP_TO_LEVEL;
 	}
+	
+	public void setNextXp(int xp)
+	{
+		XP_TO_LEVEL = xp;
+	}
 }

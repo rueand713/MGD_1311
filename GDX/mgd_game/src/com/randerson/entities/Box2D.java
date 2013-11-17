@@ -44,7 +44,7 @@ public class Box2D {
 	{
 		PolygonShape polygon = new PolygonShape();
 		
-		polygon.setRadius(radius);
+		polygon.setAsBox(radius, radius);
 		
 		return polygon;
 	}

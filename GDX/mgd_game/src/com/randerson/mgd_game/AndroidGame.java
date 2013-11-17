@@ -13,6 +13,9 @@ public class AndroidGame extends AndroidApplication {
 		config.useCompass = false;
 		config.useGL20 = true;
 		
-		initialize(new Game(), config);
+		Game game = new Game();
+		game.CONTEXT = this;
+		
+		initialize(game, config);
 	}
 }

@@ -1,5 +1,7 @@
 package com.randerson.mgd_game;
 
+import android.content.Context;
+
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
@@ -8,12 +10,14 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL10;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.World;
+import com.randerson.entities.Ambience;
 import com.randerson.entities.Coin;
 import com.randerson.entities.Heart;
 import com.randerson.entities.Hero;
@@ -40,9 +44,14 @@ public class Game implements ApplicationListener {
 	
 	// class global objects - following all caps convention
 	OrthographicCamera CAMERA;
-	Texture BLOB_LEFT;
-	Texture BLOB_RIGHT;
+	Animation BLOB_MOVING_LEFT;
+	Animation BLOB_MOVING_RIGHT;
+	Texture BLOB_IDLE_LEFT;
+	Texture BLOB_IDLE_RIGHT;
+	Texture BLOB_SPRITES;
 	Texture GRASS;
+	Texture HUD_back;
+	Texture HUD_front;
 	Hero BLOB;
 	Texture SCENE;
 	Rectangle SCENE_BOX;
@@ -59,52 +68,97 @@ public class Game implements ApplicationListener {
 	boolean[] DRAW_COINS = {true, true, true, true};
 	Coin[] coins;
 	Heart[] hearts;
-	int[][] heartLocations = {{20, 32}, {250, 32}};
-	int[][] coinLocations = {{210, 32}, {320, 32}, {550, 32}, {700, 32}};
+	Ambience[] tiles;
+	int[][] heartLocations = {{20, 96}, {250, 64}};
+	int[][] coinLocations = {{210, 64}, {320, 96}, {550, 64}, {700, 96}};
+	int[][] tileLocations = {{0, 0}, {64, 0}, {128, 0}, {192, 0}, {256, 0}, {320, 0}, {384, 0}, {448, 0}, {512, 0}, {576, 0}, {640, 0}, {704, 0}, {768, 0}};
 	int[] jumpTracker = {0, 0};
 	int SCORE = 0;
 	float X_STEP;
 	World WORLD;
+	float STATE_TIME = 0f;
+	ApplicationDefaults settings;
+	Context CONTEXT;
+	boolean firstRun;
+	boolean PAUSED = false;
+	boolean isVictorious = false;
 	
 	@Override
 	public void create() {
+	
+		// get the device properties for referencing
+		DEVICE_WIDTH = GameManager.getWidth(false);
+		DEVICE_HEIGHT = GameManager.getHeight(false);
+				
 		// setup the box2d world object
-		WORLD = new World(new Vector2(0, -10), true); 
+		WORLD = new World(new Vector2(0, -128), true);
 		
 		// create the game camera object
-		CAMERA = GameManager.getCamera(800, 480);
+		CAMERA = GameManager.getCamera(DEVICE_WIDTH, DEVICE_HEIGHT);
 		
 		// *** INITIAL LOAD OF ASSETS *** 
 		GRASS = GameManager.getTexture("Grass_1.png");
-		BLOB_LEFT = GameManager.getTexture("SlimeLeft.png");
-		BLOB_RIGHT = GameManager.getTexture("SlimeRight.png");
+		BLOB_IDLE_LEFT = GameManager.getTexture("SlimeLeft.png");
+		BLOB_IDLE_RIGHT = GameManager.getTexture("SlimeRight.png");
+		BLOB_SPRITES = GameManager.getTexture("SlimeAtlas.png");
 		SCENE = GameManager.getTexture("Scene1_bg.png");
 		bgm = GameManager.getMusic("forest_bgm.mp3");
 		HEART_SFX = GameManager.getSound("heart_fx.mp3");
 		COIN_SFX = GameManager.getSound("coin_fx.mp3");
 		JUMP_SFX = GameManager.getSound("jump_fx.mp3");
+		HUD_front = GameManager.getTexture("HUD.png");
+		HUD_back = GameManager.getTexture("HUD_Hp_bg.png");
+		
+		// setup the blob animation objects for quick reference setting
+		BLOB_MOVING_RIGHT = GameManager.animate(BLOB_SPRITES, 2, 3, 2);
+		BLOB_MOVING_LEFT = GameManager.animate(BLOB_SPRITES, 2, 3, 1);
 		
 		// verify that the background music object is created successfully
 		if (bgm != null)
 		{
 			// set the music to loop and begin playing
 			bgm.setLooping(true);
-			bgm.play();;
+			bgm.play();
 		}
-		
-		// get the device properties for referencing
-		DEVICE_WIDTH = GameManager.getWidth(true);
-		DEVICE_HEIGHT = GameManager.getHeight(true);
-		
-		// create the hero and bg image bounding rectangle
-		Rectangle heroFrame = GameManager.getRect(100, 0, 64, 64);
-		SCENE_BOX = GameManager.getRect(0, 0, DEVICE_WIDTH, DEVICE_HEIGHT);
-		
-		// instantiate a hero object
-		BLOB = new Hero(10, 5, 5, 5, 5, heroFrame, BLOB_RIGHT);
 		
 		// method for setting up the powerup objects
 		setupPowerups();
+		
+		// method for setting up tiles
+		setupTiles();
+		
+		// create the hero and bg image bounding rectangle
+		Rectangle heroFrame = GameManager.getRect(100, 64, 64, 64);
+		SCENE_BOX = GameManager.getRect(0, 0, DEVICE_WIDTH, DEVICE_HEIGHT);
+		
+		// instantiate a hero object
+		BLOB = new Hero(10, 5, 5, 5, 5, heroFrame, BLOB_IDLE_RIGHT);
+		BLOB.setPhysics(0, 1.0f, 10f, 32.0f, true);
+		BLOB.definePhysics(WORLD, true);
+		BLOB.setAnimation(BLOB_MOVING_RIGHT);
+		
+		// setup the session prefs object
+		settings = new ApplicationDefaults(CONTEXT);
+		
+		// verify that the settings object is valid
+		if (settings != null)
+		{
+			// set the firstRun object bool
+			firstRun = settings.getData().getBoolean("first-run", true);
+			
+			// check if this is the first app run
+			if (firstRun)
+			{
+				// first run save the initial data
+				saveData();
+			}
+			else
+			{
+				// otherwise load up the previous session data
+				loadData();
+			}
+			
+		}
 	}
 
 	@Override
@@ -119,12 +173,27 @@ public class Game implements ApplicationListener {
 		 Gdx.gl.glClearColor(0, 0, 0.2f, 1);
 		 Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 		
+		 // grab the player positioning
+		float playerX = BLOB.getFixture().getBody().getPosition().x;
+    	float playerY = BLOB.getFixture().getBody().getPosition().y;
+		 
 		// check if the user touched the screen
 	    if (Gdx.input.isTouched())
 	    {
 	    	// get the screen touch position
 	    	TOUCH_POSITION = GameManager.getTouchVector();
 	    	CAMERA.unproject(TOUCH_POSITION);
+	    	
+	    	// check for a hero touch event (jumping)
+	    	if (BLOB.overlaps(new Vector2(TOUCH_POSITION.x, TOUCH_POSITION.y)))
+	    	{
+	    		// verify that the player is not still jumping
+	    		if (jumpTracker[0] == jumpType.notJumping.getValue())
+	    		{
+	    			// set the jumping tracker to jumping
+	    			jumpTracker[0] = jumpType.isJumping.getValue();
+	    		}
+	    	}
 	    	
 	    	// set the moving bool to true to update the player position
 	    	HERO_IS_MOVING = true;
@@ -133,7 +202,7 @@ public class Game implements ApplicationListener {
 	    	HERO_CHANGED_DIRECTION = true;
 	    	
 	    	// get the x difference between the player and touch
-	    	float x_difference = (TOUCH_POSITION.x - BLOB.getBoundary().x);
+	    	float x_difference = (TOUCH_POSITION.x - playerX);
 	    	
 	    	// if negative absolute it to maintain positive difference value
 	    	if (x_difference < 0)
@@ -150,38 +219,7 @@ public class Game implements ApplicationListener {
 	    	{
 	    		X_STEP = 30; // move at the standard speed
 	    	}
-	    	
-	    	
-	    	// check for a hero touch event (jumping)
-	    	if (TOUCH_POSITION.x >= BLOB.getBoundary().x && TOUCH_POSITION.x <= BLOB.getBoundary().x + 64)
-	    	{
-	    		// verify that the player is not still jumping
-	    		if (jumpTracker[0] == jumpType.notJumping.getValue())
-	    		{
-	    			// play the jumping sfx
-	    			JUMP_SFX.play();
-	    			
-	    			// set the jumping tracker to jumping
-	    			jumpTracker[0] = jumpType.isJumping.getValue();
-	    		}
-	    	}
-	    	
-	    	// check if the player has jumped and the jump counter has reached its limiting value
-	    	if (jumpTracker[0] == jumpType.isJumping.getValue() && jumpTracker[1] >= 30)
-	    	{
-	    		// reset the player's jump and jump counter
-	    		jumpTracker[0] = jumpType.notJumping.getValue();
-	    		jumpTracker[1] = 0;
-	    	}
-	    	else
-	    	{
-	    		// increment the jump counter
-	    		jumpTracker[1]++;
-	    	}
 	    }
-	    
-	    // method for handling the player position
-	   updateHeroPosition();
 	   	
 	   // create the batch file for the background image
 	   SpriteBatch bgBatch = new SpriteBatch();
@@ -192,26 +230,74 @@ public class Game implements ApplicationListener {
 	    bgBatch.begin();
 	    bgBatch.draw(SCENE, SCENE_BOX.x, SCENE_BOX.y);
 	    
+	    // method for handling the tiles
+	    updateTiles(bgBatch);
+	    
 		// draw the score onto the screen
-	   GameManager.drawFont(bgBatch, "SCORE: " + SCORE, 0, GameManager.getHeight(false) - 35);
+	   GameManager.drawFont(bgBatch, "SCORE: " + SCORE, 0, GameManager.getHeight(false) - 55);
 	    
+	   // method for handling the player position
+	   updateHeroPosition();
+	   
 	    // draw the sprite to the screen
-	    bgBatch.draw(BLOB.getTexture(), BLOB.getBoundary().x, BLOB.getBoundary().y);
+	   if (HERO_IS_MOVING)
+	   {
+		   bgBatch.draw(BLOB.getAnimatedFrame(STATE_TIME, HERO_IS_MOVING), playerX, playerY);
+	   }
+	   else
+	   {
+		   bgBatch.draw(BLOB.getTexture(), playerX, playerY);
+	   }
 	    
-		 // method for handling powerup positions
-	    updatePowerups(bgBatch);
+	   // method for handling powerup positions
+	   updatePowerups(bgBatch);
 	    
-	    // end the sprite batch
-	    bgBatch.end();
-	    
+	   // draw the hp meter blank background
+	   bgBatch.draw(HUD_back, 0, GameManager.getHeight(false) - 50);
+	   
+	   // end the sprite batch
+	   bgBatch.end();
+	   
 	   // draw the hp meter
-	   GameManager.drawRectangle(new ShapeRenderer(), CAMERA, 0, GameManager.getHeight(false) - 30, BLOB.getHp(), 30, Color.GREEN);
-		    
-		 // update the camera
-	    CAMERA.update();
+	   GameManager.drawRectangle(new ShapeRenderer(), CAMERA, 11, GameManager.getHeight(false) - 43, BLOB.getHp(), 30, Color.GREEN);
+	   
+	   SpriteBatch batch = new SpriteBatch();
+	   batch.setProjectionMatrix(CAMERA.combined);
+	   batch.begin();
+	   
+	   // draw the hp meter covering
+	   batch.draw(HUD_front, 0, GameManager.getHeight(false) - 50);
+	   batch.end();
+		 
+	   // update the camera
+	   CAMERA.update();
+		   
 	    
 	    // method to check for collisions
 	    detectCollision();
+	    
+	    // check if the player has jumped and the jump counter has reached its limiting value
+    	if (jumpTracker[0] == jumpType.isJumping.getValue() && jumpTracker[1] >= 10)
+    	{
+    		// reset the player's jump and jump counter
+    		jumpTracker[0] = jumpType.notJumping.getValue();
+    		jumpTracker[1] = 0;
+    	}
+    	else
+    	{
+    		// increment the jump counter
+    		jumpTracker[1]++;
+    	}
+    	
+    	// time manager for animation frames
+	    STATE_TIME += GameManager.getDelta(false);
+	    
+	    // winning conditional tracker
+	    if (isVictorious)
+	    {
+	    	// call the game ending method
+	    	gameOver();
+	    }
 	    
 	    // step the box2d world 
 	    WORLD.step(1/60f, 6, 2);
@@ -220,22 +306,42 @@ public class Game implements ApplicationListener {
 	@Override
 	public void pause() {
 		
+		// set the pause bool to true for session delaying
+		PAUSED = true;
+		
 		// check that the music object is valid
 		if (bgm != null)
 		{
 			// pause the music
 			bgm.pause();
 		}
+		
+		// verify that the settings is setup
+		if (settings != null)
+		{
+			// first run save the initial data
+			saveData();
+		}
 	}
 
 	@Override
 	public void resume() {
 		
+		// set the pause bool to false for session returning
+		PAUSED = false;
+		
 		// check if the music object is valid and not playing
 		if (bgm != null && bgm.isPlaying() == false)
 		{
 			// begin playing the music again
-			bgm.play();;
+			bgm.play();
+		}
+		
+		// verify that the settings is setup
+		if (settings != null)
+		{
+			// otherwise load up the previous session data
+			loadData();
 		}
 	}
 
@@ -243,6 +349,9 @@ public class Game implements ApplicationListener {
 	public void dispose() {
 		
 		// nullify the java arrays
+		BLOB_IDLE_LEFT.dispose();
+		BLOB_IDLE_RIGHT.dispose();
+		BLOB_SPRITES.dispose();
 		DRAW_HEARTS = null;
 		DRAW_COINS = null;
 		coins = null;
@@ -252,13 +361,29 @@ public class Game implements ApplicationListener {
 		BLOB = null;
 		
 		// dispose of the Gdx resources
-		BLOB_LEFT.dispose();
-		BLOB_RIGHT.dispose();
 		SCENE.dispose();
 		bgm.dispose();
 		COIN_SFX.dispose();
 		HEART_SFX.dispose();
 		JUMP_SFX.dispose();
+	}
+	
+	// method for updating the tiles on screen
+	public void updateTiles(SpriteBatch batch)
+	{
+		// iterate over the locations array of the game tiles
+		for (int i = 0; i < tileLocations.length; i++)
+		{
+			// get the tile at the current index in the tiles array
+			Ambience tile = tiles[i];
+			
+			// extract the tile vector position and texture
+			Vector2 position = tile.getFixture().getBody().getPosition();
+			Texture mesh = tile.getTexture();
+			
+			// draw the sprite to the screen
+			batch.draw(mesh, position.x, position.y);
+		}
 	}
 	
 	// method for updating the powerups on screen
@@ -303,55 +428,83 @@ public class Game implements ApplicationListener {
 	
 	public void updateHeroPosition()
 	{
+		// get the player coordinates
+		int playerX = (int) BLOB.getFixture().getBody().getPosition().x;
+		int playerY = (int) BLOB.getFixture().getBody().getPosition().y;
+		
 		 // check if the object is moving
 	    if (HERO_IS_MOVING == true)
 	    {
+	    	// get the touch position
+	    	int touchX = (int) TOUCH_POSITION.x;
+	    			
+	    	// get the delta time
+	    	float deltaMove = (X_STEP * GameManager.getDelta(false));
+	    	
+	    	if (jumpTracker[0] == jumpType.isJumping.getValue())
+			{
+				if (jumpTracker[1] < 1)
+				{
+					playerY += 256.0f * GameManager.getDelta(false);
+					
+					// play the jumping sfx
+	    			JUMP_SFX.play();
+				}
+			}
+	    	else
+	    	{
+	    		playerY = 64;
+	    	}
+	    	
 	    	// check if the character has reached the x touch point
-	    	if (BLOB.getBoundary().x != TOUCH_POSITION.x)
+	    	if (playerX != touchX)
 	    	{
 	    		// check if the player touched behind or in front of the character
-	    		if (TOUCH_POSITION.x < BLOB.getBoundary().x)
+	    		if (touchX < playerX)
 	    		{
 	    			// verify if the character sprite should be changed
 	    			if (HERO_CHANGED_DIRECTION)
 	    			{
 	    				// update the character sprite to face left
-	    				BLOB.setTexture(BLOB_LEFT);
+	    				BLOB.setAnimation(BLOB_MOVING_LEFT);
+	    				BLOB.setTexture(BLOB_IDLE_LEFT);
 	    				
 	    				// set the change direction bool to false
 	    				HERO_CHANGED_DIRECTION = false;
 	    			}
 	    			
-	    			float deltaMove = (X_STEP * GameManager.getDelta(false));
-	    			
     				// move the player to the left with interpolation
-	    			BLOB.getBoundary().x -= deltaMove;
+	    			playerX -= deltaMove;
 	    			
 	    		}
-	    		else if (TOUCH_POSITION.x > BLOB.getBoundary().x)
+	    		else if (touchX > playerX)
 	    		{
 	    			// verify if the character sprite should be changed
 	    			if (HERO_CHANGED_DIRECTION)
 	    			{
 	    				// update the character sprite to face right
-	    				BLOB.setTexture(BLOB_RIGHT);
+	    				BLOB.setAnimation(BLOB_MOVING_RIGHT);
+	    				BLOB.setTexture(BLOB_IDLE_RIGHT);
 	    				
 	    				// set the change direction bool to false
 	    				HERO_CHANGED_DIRECTION = false;
 	    			}
 	    			
-					float deltaMove = (X_STEP * GameManager.getDelta(false));
-	    			
     				// move the player to the left with interpolation
-	    			BLOB.getBoundary().x += deltaMove;
+	    			playerX += deltaMove;
 	    		}	
+	    		
 	    	}		// check if the character has reached the touch position and set to move
-	    	else if (BLOB.getBoundary().x == TOUCH_POSITION.x && HERO_IS_MOVING != false)
+	    	else if (playerX == touchX && HERO_IS_MOVING == true)
 	    	{
 	    		// set the moving bool to skip updating character position
 	    		HERO_IS_MOVING = false;
 	    	}
 	    }
+	    
+	    // apply the coords from the lib boundary to the Box2D boundary
+    	BLOB.getFixture().getBody().setTransform(playerX, playerY, 0);
+    	BLOB.getBoundary().setPosition(playerX, playerY);
 	}
 	
 	public void setupPowerups()
@@ -370,13 +523,13 @@ public class Game implements ApplicationListener {
 			int value = 1;
 			
 			// check if n meets modulus conditions for higher valued coin
-			if (n % 3 == 0)
+			if (n % 5 == 0)
 			{
 				 texturePath = "Coin_Gold.png";
 				 name = "Gold Coin";
 				 value = 10;
 			}
-			else if (n % 5 == 0)
+			else if (n % 3 == 0)
 			{
 				texturePath = "Coin_Silver.png";
 				name = "Silver Coin";
@@ -425,7 +578,7 @@ public class Game implements ApplicationListener {
 			Coin coin = coins[i];
 			
 			// check if there is a collision between this coin and the hero
-			if (coin.getBoundary().overlaps(BLOB.getBoundary()) && DRAW_COINS[i] == true)
+			if (BLOB.overlaps(coin.getBoundary()) && DRAW_COINS[i] == true)
 			{
 				// play the coin sound fx
 				COIN_SFX.play();
@@ -445,7 +598,7 @@ public class Game implements ApplicationListener {
 			Heart heart = hearts[n];
 			
 			// check if there is a collision between this coin and the hero
-			if (heart.getBoundary().overlaps(BLOB.getBoundary()) && DRAW_HEARTS[n] == true)
+			if (BLOB.overlaps(heart.getBoundary()) && DRAW_HEARTS[n] == true)
 			{
 				// play the heart sound effect
 				HEART_SFX.play();
@@ -457,5 +610,103 @@ public class Game implements ApplicationListener {
 			}
 		}
 	}
+	
+	public void setupTiles()
+	{
+		// setup the array of tiles
+		tiles = new Ambience[tileLocations.length];
+		
+		// iterate over the tile locations creating tiles for each coordinate
+		for (int i = 0; i < tileLocations.length; i++)
+		{
+			// create a grass tile object
+			Ambience grassTile = new Ambience(GRASS, "Grass", false);
+			
+			// verify that the object if valid
+			if (grassTile != null)
+			{
+				// get the tile coordinates from the array
+				int x = tileLocations[i][0];
+				int y = tileLocations[i][1];
+				
+				// define the physics for the grass tile object
+				// width and height take half of the sprite sizes as arguments
+				grassTile.definePhysics(WORLD, x, y, 32.0f, 32.0f);
+				
+				// add the tile to the tiles array
+				tiles[i] = grassTile;
+			}
+		}
+	}
 
+	// method for saving session data
+	public void saveData()
+	{
+		// load the current game data
+		float x = BLOB.getFixture().getBody().getPosition().x;
+		float y = BLOB.getFixture().getBody().getPosition().y;
+		int maxHp = BLOB.getMaxHp();
+		int hp = BLOB.getHp();
+		int xp = BLOB.getCurrentXp();
+		int totXp = BLOB.getTotalXp();
+		int nextXp = BLOB.getNextXp();
+		int lv = BLOB.getLvl();
+		
+		// save the data into the application prefs
+		settings.setFloat("xPos", x);
+		settings.setFloat("yPos", y);
+		settings.setInt("score", SCORE);
+		settings.setInt("maxHp", maxHp);
+		settings.setInt("hp", hp);
+		settings.setInt("totXp", totXp);
+		settings.setInt("xp", xp);
+		settings.setInt("nextXp", nextXp);
+		settings.setInt("lv", lv);
+		
+	}
+	
+	// method for restoring session data
+	public void loadData()
+	{
+		// retrieve the default values
+		float x = BLOB.getFixture().getBody().getPosition().x;
+		float y = BLOB.getFixture().getBody().getPosition().y;
+		int maxHp = BLOB.getMaxHp();
+		int hp = BLOB.getHp();
+		int xp = BLOB.getCurrentXp();
+		int totXp = BLOB.getTotalXp();
+		int nextXp = BLOB.getNextXp();
+		int lv = BLOB.getLvl();
+		
+		// try to load the saved data values supplying the defaults on null returns
+		x = settings.getData().getFloat("xPos", x);
+		y = settings.getData().getFloat("yPos", y);
+		SCORE = settings.getData().getInt("score", SCORE);
+		maxHp = settings.getData().getInt("maxHp", maxHp);
+		hp = settings.getData().getInt("hp", hp);
+		totXp = settings.getData().getInt("totXp", totXp);
+		xp = settings.getData().getInt("xp", xp);
+		nextXp = settings.getData().getInt("nextXp", nextXp);
+		lv = settings.getData().getInt("lv", lv);
+		
+		// set the retrieved values
+		BLOB.setCurrentXp(xp);
+		BLOB.setTotalXp(totXp);
+		BLOB.setHp(hp);
+		BLOB.setMaxHp(maxHp);
+		BLOB.setNextXp(nextXp);
+		BLOB.setLevel(lv);
+		BLOB.getFixture().getBody().setTransform(new Vector2(x, y), 0);
+	}
+	
+	public void gameOver()
+	{
+		
+	}
+	
+	public void levelOver()
+	{
+		
+	}
+	
 }

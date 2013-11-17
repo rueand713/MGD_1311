@@ -6,8 +6,10 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Rectangle;
@@ -140,6 +142,59 @@ public class GameManager {
 		}
 		
 		return (int) width;
+	}
+	
+	// method for creating and returning an animation object for a full sheet or for a particular row in the sheet
+	public static Animation animate(Texture spriteSheet, int rows, int columns, int rowToReturn)
+	{
+		// create the animation object
+		Animation animation;
+		
+		// get the sprite width and height based on the sheet size and number of rows and columns
+		int height = spriteSheet.getHeight() / rows;
+		int width = spriteSheet.getWidth() / columns;
+		
+		// create the texture region arrays for extracting the individual frames
+		TextureRegion[][] region = TextureRegion.split(spriteSheet, width, height);
+		TextureRegion[] sheetFrames = new TextureRegion[columns * rows];
+		
+		// sprite sheet frame index
+		int index = 0;
+		
+		// iterate over the rows and columsn present in the spritesheet and extract each region as a frame
+		for (int i = 0; i < rows; i++)
+		{
+			for (int n = 0; n < columns; n++)
+			{
+				// set the frame at current index to the n-th index at index i of the region array
+				sheetFrames[index++] = region[i][n];
+			}
+		}
+		
+		// check if the method should return an animation of only a single row or not
+		if (rowToReturn > 0)
+		{
+			// create a temporary region object for extracting the sprite row
+			TextureRegion[] tempFrame = new TextureRegion[columns];
+			
+			// the frame index of the current sheetFrames region object to begin extraction at
+			int frame = (rowToReturn - 1) * columns;
+			
+			// iteroate over the temporary frame object assigning the frame at the current 
+			// index of the sheetFrames object to the current index in the temp frame object
+			for (int x = 0; x < tempFrame.length; x++)
+			{
+				tempFrame[x] = sheetFrames[frame + x];
+			}
+			
+			// assign the new frames
+			sheetFrames = tempFrame;
+		}
+		
+		// initialize the animation with the keyframes set in the sheetFrames textureRegion
+		animation = new Animation(0.25f, sheetFrames);
+		
+		return animation;
 	}
 	
 }
