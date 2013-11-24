@@ -6,18 +6,18 @@ import com.randerson.mgd_game.GameManager;
 
 public class PowerUp {
 	
-	String name;
-	Rectangle bounds;
-	Texture texture;
+	String NAME;
+	Rectangle BOUNDARY;
+	Texture TEXTURE;
 	int index = -1;
 	
 	public PowerUp(float x, float y, String texturePath, String name)
 	{
 		// set the object coordinates
-		bounds = GameManager.getRect(x, y, 32, 32);
+		BOUNDARY = GameManager.getRect(x, y, 32, 32);
 		
 		// set the texture path
-		texture = GameManager.getTexture(texturePath);
+		TEXTURE = GameManager.getTexture(texturePath);
 	}
 	
 	// getter methods for retrieving class values
@@ -25,25 +25,25 @@ public class PowerUp {
 	//return the x position
 	public float getX()
 	{	
-		return bounds.x;
+		return BOUNDARY.x;
 	}
 	
 	// return the y position
 	public float getY()
 	{
-		return bounds.y;
+		return BOUNDARY.y;
 	}
 	
 	// return the rectangle frame
 	public Rectangle getBoundary()
 	{
-		return bounds;
+		return BOUNDARY;
 	}
 	
 	// returns the texture object
 	public Texture getTexture()
 	{
-		return texture;
+		return TEXTURE;
 	}
 	
 	// returns the object index value (a sort of id)

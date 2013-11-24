@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 
 public class GameManager {
@@ -67,9 +68,11 @@ public class GameManager {
 	}
 	
 	// method for drawing text to screen
-	public static void drawFont(SpriteBatch batch, String string, int x, int y)
+	public static void drawFont(SpriteBatch batch, String string, int x, int y, float scale, Color color)
 	{
 		BitmapFont font = new BitmapFont();
+		font.scale(scale);
+		font.setColor(color);
 		
 		font.draw(batch, string, x, y);
 	}
@@ -195,6 +198,46 @@ public class GameManager {
 		animation = new Animation(0.25f, sheetFrames);
 		
 		return animation;
+	}
+	
+	public static Vector2 getVect2(Vector3 vector)
+	{
+		return new Vector2(vector.x, vector.y);
+	}
+	
+	// method for checking collision between two entities using a fixture and rectangle
+	public static boolean overlaps(Vector2 touch, Rectangle rectangle, boolean addPadding)
+	{
+		// get the vector objects associated with this actor and the other supplied
+		Vector2 button = new Vector2(rectangle.x, rectangle.y);
+		
+		int padding = 0;
+		
+		if (addPadding)
+		{
+			padding = 10;
+		}
+		
+		// set the default collision return value
+		boolean isColliding = false;
+		
+		// set the x and y collision ranges for sprites
+		float xRangeMax = button.x + (rectangle.getWidth() + padding);
+		float xRangeMin = button.x - (10 + padding);
+		float yRangeMax = button.y + (rectangle.getHeight() + padding);
+		float yRangeMin = button.y - (10 + padding);
+		
+		// check if the two fixtures occupy the same space x & y
+		// if they do then a collision is set to return true
+		if (touch.x >= xRangeMin && touch.x <= xRangeMax)
+		{
+			if (touch.y >= yRangeMin && touch.y <= yRangeMax)
+			{
+				isColliding = true;
+			}
+		}
+		
+		return isColliding;
 	}
 	
 }

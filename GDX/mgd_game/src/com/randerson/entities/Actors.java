@@ -15,6 +15,7 @@ import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
+import com.randerson.mgd_game.Box2D;
 import com.randerson.mgd_game.GameManager;
 
 public class Actors {
@@ -78,7 +79,7 @@ public class Actors {
 		
 		if (usePolygon)
 		{
-			POLY_BOUNDARY = Box2D.getPolygon(shapeRadius);
+			POLY_BOUNDARY = Box2D.getPolygon(shapeRadius, shapeRadius, new Vector2(shapeRadius / 2, shapeRadius /2));
 		}
 		else
 		{
@@ -199,11 +200,22 @@ public class Actors {
 		return isColliding;
 	}
 	
+	public float getHpMeterLevel(float meterLength)
+	{
+		float meter = (HP / (float) MAX_HP) * meterLength;
+		return meter;
+	}
+	
 	// ***** SETTER METHODS *****
 	
 	// method for adding item to inventory
 	public void addItem(Item item)
 	{
+		if (INVENTORY == null)
+		{
+			INVENTORY = new ArrayList<Item>();
+		}
+		
 		INVENTORY.add(item);
 	}
 	

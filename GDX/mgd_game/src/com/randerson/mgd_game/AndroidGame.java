@@ -1,21 +1,28 @@
 package com.randerson.mgd_game;
 
-import com.badlogic.gdx.backends.android.AndroidApplication;
-import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
+import com.badlogic.gdx.Game;
 
-public class AndroidGame extends AndroidApplication {
-
-	public void onCreate (android.os.Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
+public class AndroidGame extends Game {
+	
+	// create the screen objects for accessing outside the class
+	ActOne actOne;
+	MainMenu mainMenu;
+	Tutorial tutorial;
+	Splash splash;
+	Credits credits;
+	
+	@Override
+	public void create() {
 		
-		AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
-		config.useAccelerometer = false;
-		config.useCompass = false;
-		config.useGL20 = true;
+		// setup the game screens passing in a reference to this
+		// AndroidGame class
+		actOne = new ActOne(this);
+		mainMenu = new MainMenu(this);
+		tutorial = new Tutorial(this);
+		splash = new Splash(this);
+		credits = new Credits(this);
 		
-		Game game = new Game();
-		game.CONTEXT = this;
-		
-		initialize(game, config);
+		// set the first screen to show
+		setScreen(mainMenu);
 	}
 }
